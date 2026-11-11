@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue?logo=python)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.3.0-orange)](https://github.com/zhuohengsong928-art/smart-file-sorter)
+[![Version](https://img.shields.io/badge/version-2.4.0-orange)](https://github.com/zhuohengsong928-art/smart-file-sorter)
 
 > 基于 Python 的智能文件分拣管理工具，支持文件自动分类、批量重命名、内容去重、运行日志追溯，适用于个人办公桌面自动化管理。
 
@@ -17,6 +17,12 @@
 - 🔍 **安全预览** — `--dry-run` 先看再动，零风险
 - 📊 **统计报告** — 分类数量 / 文件大小 / 跳过明细，支持 JSON 导出
 - 🚫 **智能过滤** — 自动跳过系统文件、快捷方式、下载临时文件
+
+## 🆕 v2.4.0 升级（毕业设计版）
+
+- 🖥️ **图形界面（GUI）** — Tkinter 桌面窗口：选目录 → 预览 → 一键整理；双击 `start-gui.bat` 或运行 `file-sorter-gui` 启动
+- 🗄️ **整理历史数据库** — 每次整理自动写入 SQLite（`~/.smart-file-sorter/history.db`），文件从哪来到哪去可回溯；命令行 `file-sorter --history <任意目录>` 查看
+- ♻️ **重复文件扫描清理** — 两阶段比对（大小粗筛 + MD5 确认）找出内容重复的文件组并计算可回收空间；命令行 `file-sorter --dup-scan <目录>` 或在 GUI 中操作（删除前二次确认，每组必留一份）
 
 ## 📦 安装
 

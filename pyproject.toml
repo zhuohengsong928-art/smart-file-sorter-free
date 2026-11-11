@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "smart-file-sorter"
-version = "2.0.0"
+version = "2.4.0"
 description = "智能文件分拣管理系统 — 文件智能分类、批量重命名、目录归档与运行统计"
 authors = [{ name = "龙虾King 🦞" }]
 readme = "README.md"
@@ -37,6 +37,7 @@ dev = [
 
 [project.scripts]
 file-sorter = "file_sorter.__main__:main"
+file-sorter-gui = "file_sorter.gui:main"
 
 [project.urls]
 Homepage = "https://github.com/lobsterking/smart-file-sorter"

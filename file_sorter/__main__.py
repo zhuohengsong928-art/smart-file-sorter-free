@@ -81,17 +81,62 @@ def main() -> None:
         help="详细模式：控制台也输出 DEBUG 级别日志",
     )
     parser.add_argument(
+        "--history",
+        action="store_true",
+        help="查看最近的整理历史记录（来自 SQLite 历史库）后退出",
+    )
+    parser.add_argument(
+        "--dup-scan",
+        action="store_true",
+        help="重复文件扫描模式：只报告内容重复的文件组，不做整理",
+    )
+    parser.add_argument(
         "-V", "--version",
         action="version",
-        version="Smart File Sorter v2.3.0",
+        version="Smart File Sorter v2.4.0",
     )
 
     args = parser.parse_args()
 
     # === 初始化日志 ===
     log = init_logger(log_dir=args.log_dir, verbose=args.verbose)
-    log.info("🦞 Smart File Sorter v2.3.0 启动")
+    log.info("🦞 Smart File Sorter v2.4.0 启动")
     log.info("日志文件: %s", get_log_file_path())
+
+    # === 历史查看模式 ===
+    if args.history:
+        from .history import list_runs, summary_stats
+
+        runs = list_runs(limit=10)
+        if not runs:
+            print("暂无整理历史。先真实执行一次整理（非 --dry-run）就会产生记录。")
+            sys.exit(0)
+        print("最近的整理历史：")
+        for r in runs:
+            print(
+                f"  #{r['id']} {r['created_at']} | 文件 {r['total_files']}"
+                f"（移动 {r['moved']}，去重跳过 {r['duplicates']}）"
+            )
+        s = summary_stats()
+        print(f"累计：运行 {s['runs']} 次，整理 {s['files']} 个文件。")
+        sys.exit(0)
+
+    # === 重复文件扫描模式 ===
+    if args.dup_scan:
+        from .duplicates import find_duplicates
+        from .stats import format_size
+
+        groups = find_duplicates(args.directories, recursive=True)
+        if not groups:
+            print("未发现内容重复的文件。")
+            sys.exit(0)
+        total = sum(g["reclaimable"] for g in groups)
+        print(f"发现 {len(groups)} 组重复文件，可回收约 {format_size(total)}：")
+        for g in groups:
+            print(f"\n[{format_size(g['size'])} × {len(g['paths'])} 份]")
+            for p in g["paths"]:
+                print(f"  {p}")
+        sys.exit(0)
 
     t_start = time.perf_counter()
 
@@ -130,6 +175,14 @@ def main() -> None:
 
     # 执行整理
     organized = organize_files(all_scanned, config, dry_run=False)
+
+    # 写入历史库（失败不影响整理结果本身）
+    try:
+        from .history import record_run
+
+        record_run(organized)
+    except Exception as e:  # noqa: BLE001 - 历史记录是附加功能
+        log.warning("历史记录写入失败: %s", e)
 
     # 统计
     stats = compute_stats(all_scanned, organized)
