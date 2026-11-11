@@ -1,0 +1,103 @@
+# ============================================================
+# Smart File Sorter — 分类规则配置
+# 自定义分类：添加/修改 categories 下的条目即可
+# ============================================================
+
+# 分类名称 → 匹配的扩展名列表
+categories:
+  PDF文档:
+    - .pdf
+    - .epub
+    - .mobi
+  
+  图片:
+    - .jpg
+    - .jpeg
+    - .png
+    - .gif
+    - .bmp
+    - .webp
+    - .svg
+    - .ico
+  
+  代码脚本:
+    - .py
+    - .js
+    - .ts
+    - .html
+    - .css
+    - .scss
+    - .java
+    - .cpp
+    - .c
+    - .h
+    - .go
+    - .rs
+    - .json
+    - .xml
+    - .yaml
+    - .yml
+    - .sql
+    - .sh
+    - .bat
+    - .ps1
+  
+  办公文档:
+    - .doc
+    - .docx
+    - .xls
+    - .xlsx
+    - .ppt
+    - .pptx
+    - .txt
+    - .md
+    - .csv
+    - .rtf
+  
+  压缩包:
+    - .zip
+    - .rar
+    - .7z
+    - .tar
+    - .gz
+    - .bz2
+    - .xz
+  
+  音视频:
+    - .mp4
+    - .mov
+    - .avi
+    - .mkv
+    - .flv
+    - .mp3
+    - .wav
+    - .flac
+    - .aac
+
+# 忽略的扩展名（快捷方式、下载临时文件等）
+skip_extensions:
+  - .lnk
+  - .url
+  - .crdownload
+  - .tmp
+  - .part
+
+# 忽略的文件名模式（系统文件、临时文件）
+skip_patterns:
+  - "desktop.ini"
+  - "Thumbs.db"
+  - ".DS_Store"
+  - "~$*"
+
+# 递归扫描子目录（true=递归 false=仅当前层级）
+recursive: false
+
+# 重命名格式：{date} 会被替换为当前日期
+rename_format: "{date}_{name}"
+date_format: "%Y%m%d"
+
+# 输出目标根目录（空字符串 = 每个源目录下创建分类文件夹）
+output_root: ""
+
+# 内容级去重：目标已存在同名文件时，比较 MD5，相同则跳过移动
+dedup_by_content: true

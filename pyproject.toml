@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smart-file-sorter"
+version = "2.0.0"
+description = "智能文件分拣管理系统 — 文件智能分类、批量重命名、目录归档与运行统计"
+authors = [{ name = "龙虾King 🦞" }]
+readme = "README.md"
+license = { text = "MIT" }
+keywords = ["file-management", "automation", "file-sorter", "organizer", "productivity"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Desktop Environment :: File Managers",
+    "Topic :: Utilities",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.1",
+]
+
+[project.scripts]
+file-sorter = "file_sorter.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/lobsterking/smart-file-sorter"
+Repository = "https://github.com/lobsterking/smart-file-sorter"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.ruff]
+line-length = 100
