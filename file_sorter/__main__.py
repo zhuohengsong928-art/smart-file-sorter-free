@@ -91,6 +91,11 @@ def main() -> None:
         help="重复文件扫描模式：只报告内容重复的文件组，不做整理",
     )
     parser.add_argument(
+        "--undo",
+        action="store_true",
+        help="撤销最近一次整理：按历史记录把文件移回原位置后退出",
+    )
+    parser.add_argument(
         "-V", "--version",
         action="version",
         version="Smart File Sorter v2.4.0",
@@ -119,6 +124,26 @@ def main() -> None:
             )
         s = summary_stats()
         print(f"累计：运行 {s['runs']} 次，整理 {s['files']} 个文件。")
+        sys.exit(0)
+
+    # === 撤销模式 ===
+    if args.undo:
+        from .undo import undo_run
+
+        try:
+            result = undo_run()
+        except ValueError as e:
+            print(str(e))
+            sys.exit(1)
+        if result["run_id"] is None:
+            print("没有可撤销的整理记录。")
+            sys.exit(0)
+        print(
+            f"已撤销运行 #{result['run_id']}：还原 {len(result['restored'])} 个文件，"
+            f"跳过 {len(result['skipped'])} 个。"
+        )
+        for s in result["skipped"]:
+            print(f"  跳过 {s['path']}：{s['reason']}")
         sys.exit(0)
 
     # === 重复文件扫描模式 ===

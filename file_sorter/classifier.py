@@ -62,7 +62,8 @@ def scan_directory(
             if attrs & 0x2 or attrs & 0x4:  # FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM
                 results.append({
                     "path": str(file_path), "name": name, "ext": ext,
-                    "size": size, "category": None, "skipped": "隐藏/系统文件"
+                    "size": size, "category": None, "skipped": "隐藏/系统文件",
+                    "detected_format": None, "corrected": False,
                 })
                 skip_count += 1
                 log.debug("跳过(隐藏/系统): %s", name)
@@ -72,7 +73,8 @@ def scan_directory(
             if name.startswith(".") and not config.get("include_hidden", False):
                 results.append({
                     "path": str(file_path), "name": name, "ext": ext,
-                    "size": size, "category": None, "skipped": "隐藏文件"
+                    "size": size, "category": None, "skipped": "隐藏文件",
+                    "detected_format": None, "corrected": False,
                 })
                 skip_count += 1
                 log.debug("跳过(隐藏): %s", name)
@@ -82,17 +84,30 @@ def scan_directory(
         if should_skip(name, config):
             results.append({
                 "path": str(file_path), "name": name, "ext": ext,
-                "size": size, "category": None, "skipped": "规则过滤"
+                "size": size, "category": None, "skipped": "规则过滤",
+                "detected_format": None, "corrected": False,
             })
             skip_count += 1
             log.debug("跳过(规则): %s", name)
             continue
 
-        # 分类
+        # 分类：先按扩展名，再用文件头魔数校验纠正
         category = classify_file(name, config)
+        detected_format = None
+        corrected = False
+        if config.get("verify_content", True):
+            from .magic import verify_category
+
+            category, detected_format, corrected = verify_category(file_path, category)
+            if corrected:
+                log.info(
+                    "内容校验纠正: %s 扩展名类别→内容类别 [%s]（真实格式 %s）",
+                    name, category, detected_format,
+                )
         results.append({
             "path": str(file_path), "name": name, "ext": ext,
-            "size": size, "category": category, "skipped": None
+            "size": size, "category": category, "skipped": None,
+            "detected_format": detected_format, "corrected": corrected,
         })
         scan_count += 1
         log.debug("分类: [%s] %s (%s)", category, name, _fmt_size(size))

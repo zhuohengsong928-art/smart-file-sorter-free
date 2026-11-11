@@ -60,6 +60,10 @@ def _connect(db_path: Optional[str | Path] = None) -> sqlite3.Connection:
         """
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_actions_run ON actions(run_id)")
+    # 迁移：老版本数据库补 undone 列（撤销功能用）
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(runs)").fetchall()}
+    if "undone" not in cols:
+        conn.execute("ALTER TABLE runs ADD COLUMN undone INTEGER NOT NULL DEFAULT 0")
     return conn
 
 
@@ -133,6 +137,38 @@ def list_actions(run_id: int, db_path: Optional[str | Path] = None) -> list[dict
             "SELECT * FROM actions WHERE run_id = ? ORDER BY id", (run_id,)
         )
         return [dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def is_undone(run_id: int, db_path: Optional[str | Path] = None) -> bool:
+    """该次运行是否已被撤销。"""
+    conn = _connect(db_path)
+    try:
+        row = conn.execute("SELECT undone FROM runs WHERE id = ?", (run_id,)).fetchone()
+        return bool(row and row["undone"])
+    finally:
+        conn.close()
+
+
+def mark_undone(run_id: int, db_path: Optional[str | Path] = None) -> None:
+    """把一次运行标记为已撤销（撤销不可重复执行）。"""
+    conn = _connect(db_path)
+    try:
+        conn.execute("UPDATE runs SET undone = 1 WHERE id = ?", (run_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def latest_run_id(db_path: Optional[str | Path] = None) -> Optional[int]:
+    """最近一次未撤销的运行编号；没有则 None。"""
+    conn = _connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT id FROM runs WHERE undone = 0 ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        return int(row["id"]) if row else None
     finally:
         conn.close()
 

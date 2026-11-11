@@ -7,6 +7,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from file_sorter.history import list_actions, list_runs, record_run, summary_stats
 from file_sorter.duplicates import delete_duplicates, find_duplicates
+from file_sorter.magic import sniff_format, verify_category
+from file_sorter.classifier import scan_directory
+from file_sorter.config import DEFAULT_CONFIG
+from file_sorter.archiver import organize_files
+from file_sorter.undo import undo_run
 
 
 def _fake_organized():
@@ -87,3 +92,70 @@ class TestDuplicates:
         assert len(targets) == 1
         assert not Path(targets[0]).exists()
         assert Path(g["paths"][0]).exists()
+
+
+class TestMagic:
+    """文件头魔数校验：改名欺骗要被纠正，纯文本不强判。"""
+
+    def test_fake_pdf_is_corrected(self, tmp_path):
+        p = tmp_path / "photo.pdf"
+        p.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 32)
+        assert sniff_format(p) == ("PNG", "图片")
+        final, fmt, corrected = verify_category(p, "PDF文档")
+        assert (final, fmt, corrected) == ("图片", "PNG", True)
+
+    def test_real_pdf_passes(self, tmp_path):
+        p = tmp_path / "doc.pdf"
+        p.write_bytes(b"%PDF-1.7\n" + b"\x00" * 16)
+        final, fmt, corrected = verify_category(p, "PDF文档")
+        assert (final, fmt, corrected) == ("PDF文档", "PDF", False)
+
+    def test_docx_zip_container_fine(self, tmp_path):
+        p = tmp_path / "a.docx"
+        p.write_bytes(b"PK\x03\x04" + b"\x00" * 16)
+        final, fmt, corrected = verify_category(p, "办公文档")
+        assert fmt == "DOCX" and corrected is False
+
+    def test_plain_text_not_forced(self, tmp_path):
+        p = tmp_path / "n.txt"
+        p.write_text("just some plain text", encoding="utf-8")
+        final, fmt, corrected = verify_category(p, "办公文档")
+        assert (final, fmt, corrected) == ("办公文档", None, False)
+
+    def test_scan_corrects_category(self, tmp_path):
+        (tmp_path / "fake.pdf").write_bytes(b"\xff\xd8\xff\xe0" + b"\x00" * 16)
+        scanned = scan_directory(tmp_path, dict(DEFAULT_CONFIG))
+        item = next(f for f in scanned if f["name"] == "fake.pdf")
+        assert item["category"] == "图片"
+        assert item["corrected"] is True
+        assert item["detected_format"] == "JPEG"
+
+
+class TestUndo:
+    """整理 → 历史 → 撤销，全链路回到原样。"""
+
+    def test_undo_restores_files(self, tmp_path):
+        db = tmp_path / "h.db"
+        src = tmp_path / "messy"
+        src.mkdir()
+        (src / "a.pdf").write_bytes(b"%PDF-1.4 data")
+        (src / "b.txt").write_text("hello", encoding="utf-8")
+
+        config = dict(DEFAULT_CONFIG)
+        scanned = scan_directory(src, config)
+        organized = organize_files(scanned, config, dry_run=False)
+        record_run(organized, db_path=db)
+        assert not (src / "a.pdf").exists()  # 已被整理走
+
+        result = undo_run(db_path=db)
+        assert result["run_id"] == 1
+        assert len(result["restored"]) == 2
+        assert (src / "a.pdf").exists() and (src / "b.txt").exists()
+
+        # 重复撤销必须被拒绝：显式指定同一 run，或已无可撤销运行
+        try:
+            undo_run(run_id=1, db_path=db)
+            raise AssertionError("重复撤销应抛 ValueError")
+        except ValueError:
+            pass
+        assert undo_run(db_path=db)["run_id"] is None

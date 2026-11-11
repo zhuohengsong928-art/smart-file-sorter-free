@@ -56,6 +56,7 @@ class SorterApp(tk.Tk):
         ttk.Button(bar, text="② 执行整理", command=self._execute).pack(side=tk.LEFT, padx=4)
         ttk.Button(bar, text="重复文件扫描", command=self._dup_window).pack(side=tk.LEFT, padx=4)
         ttk.Button(bar, text="历史记录", command=self._history_window).pack(side=tk.LEFT, padx=4)
+        ttk.Button(bar, text="撤销上次整理", command=self._undo_last).pack(side=tk.LEFT, padx=4)
 
         cols = ("name", "category", "new_name", "size", "state")
         self.tree = ttk.Treeview(self, columns=cols, show="headings")
@@ -111,6 +112,8 @@ class SorterApp(tk.Tk):
         for category, records in self._organized.items():
             for r in records:
                 state = "内容重复·将跳过" if r.get("content_duplicate") else "待移动"
+                if r.get("corrected"):
+                    state += f"（内容校验：实为{r.get('detected_format')}，已纠正）"
                 self.tree.insert(
                     "",
                     tk.END,
@@ -146,6 +149,28 @@ class SorterApp(tk.Tk):
         messagebox.showinfo("完成", msg)
         self._scanned = []
         self._organized = {}
+
+    # ---------- 撤销 ----------
+    def _undo_last(self) -> None:
+        from .undo import undo_run
+
+        if not messagebox.askyesno(
+            "确认撤销", "将把最近一次整理移动的文件全部移回原位置，确定吗？"
+        ):
+            return
+        try:
+            result = undo_run()
+        except ValueError as e:
+            messagebox.showwarning("无法撤销", str(e))
+            return
+        if result["run_id"] is None:
+            messagebox.showinfo("提示", "没有可撤销的整理记录。")
+            return
+        msg = f"已撤销运行 #{result['run_id']}：还原 {len(result['restored'])} 个文件。"
+        if result["skipped"]:
+            msg += f"\n跳过 {len(result['skipped'])} 个（文件已被移动/原位置被占用），详情见日志。"
+        self.status.set(msg)
+        messagebox.showinfo("撤销完成", msg)
 
     # ---------- 历史窗口 ----------
     def _history_window(self) -> None:

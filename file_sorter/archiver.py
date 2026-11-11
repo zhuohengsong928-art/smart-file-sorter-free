@@ -75,6 +75,8 @@ def organize_files(
             "size": file_info["size"],
             "content_duplicate": meta["content_duplicate"],
             "name_conflict": meta["name_conflict"],
+            "detected_format": file_info.get("detected_format"),
+            "corrected": bool(file_info.get("corrected")),
         }
 
         # 内容重复：跳过移动

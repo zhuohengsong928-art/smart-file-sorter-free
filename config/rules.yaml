@@ -101,3 +101,6 @@ output_root: ""
 
 # 内容级去重：目标已存在同名文件时，比较 MD5，相同则跳过移动
 dedup_by_content: true
+
+# 内容校验：读文件头魔数验证真实格式，与扩展名类别冲突时以内容为准纠正
+verify_content: true
