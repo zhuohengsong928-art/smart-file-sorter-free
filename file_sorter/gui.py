@@ -55,6 +55,7 @@ class SorterApp(tk.Tk):
         ttk.Button(bar, text="① 扫描预览", command=self._preview).pack(side=tk.LEFT)
         ttk.Button(bar, text="② 执行整理", command=self._execute).pack(side=tk.LEFT, padx=4)
         ttk.Button(bar, text="重复文件扫描", command=self._dup_window).pack(side=tk.LEFT, padx=4)
+        ttk.Button(bar, text="相似图片", command=self._similar_window).pack(side=tk.LEFT, padx=4)
         ttk.Button(bar, text="历史记录", command=self._history_window).pack(side=tk.LEFT, padx=4)
         ttk.Button(bar, text="撤销上次整理", command=self._undo_last).pack(side=tk.LEFT, padx=4)
 
@@ -195,6 +196,46 @@ class SorterApp(tk.Tk):
         ttk.Label(
             win, text=f"累计：运行 {s['runs']} 次，整理 {s['files']} 个文件，共 {format_size(s['bytes'])}。"
         ).pack(padx=8, pady=(0, 8))
+
+    # ---------- 相似图片窗口 ----------
+    def _similar_window(self) -> None:
+        if not self.directories:
+            messagebox.showinfo("提示", "请先添加至少一个目录。")
+            return
+        from .duplicates import find_similar_images, pillow_available
+
+        if not pillow_available():
+            messagebox.showwarning(
+                "缺少依赖", "图片相似检测需要 Pillow：\n pip install Pillow 后再试。"
+            )
+            return
+        win = tk.Toplevel(self)
+        win.title("相似图片扫描（感知哈希 · 同图不同格式也能认）")
+        win.geometry("720x380")
+        label = ttk.Label(win, text="扫描中，请稍候…")
+        label.pack(padx=8, pady=8)
+        text = tk.Text(win, wrap="none")
+        text.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 8))
+
+        def do_scan() -> None:
+            groups = find_similar_images(self.directories, recursive=True)
+
+            def render() -> None:
+                if not groups:
+                    label.config(text="未发现相似图片。")
+                    return
+                label.config(
+                    text=f"共 {len(groups)} 组相似图片。相似不等于相同，这里只报告、不提供删除，请人工确认。"
+                )
+                for gi, g in enumerate(groups):
+                    text.insert(tk.END, f"第 {gi + 1} 组（{len(g['paths'])} 张）：\n")
+                    for p in g["paths"]:
+                        text.insert(tk.END, f"  {p}\n")
+                    text.insert(tk.END, "\n")
+
+            win.after(0, render)
+
+        threading.Thread(target=do_scan, daemon=True).start()
 
     # ---------- 重复文件窗口 ----------
     def _dup_window(self) -> None:

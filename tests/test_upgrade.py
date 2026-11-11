@@ -6,7 +6,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from file_sorter.history import list_actions, list_runs, record_run, summary_stats
-from file_sorter.duplicates import delete_duplicates, find_duplicates
+from file_sorter.duplicates import (
+    delete_duplicates,
+    find_duplicates,
+    find_similar_images,
+)
 from file_sorter.magic import sniff_format, verify_category
 from file_sorter.classifier import scan_directory
 from file_sorter.config import DEFAULT_CONFIG
@@ -159,3 +163,38 @@ class TestUndo:
         except ValueError:
             pass
         assert undo_run(db_path=db)["run_id"] is None
+
+
+class TestSimilarImages:
+    """感知哈希：同图不同格式/尺寸要认出，不同图不能混。"""
+
+    def test_same_picture_different_format(self, tmp_path):
+        pytest = __import__("pytest")
+        pytest.importorskip("PIL")
+        from PIL import Image
+
+        # 一张有明确明暗结构的图：左暗右亮 + 顶部亮带
+        img = Image.new("L", (64, 64), 40)
+        px = img.load()
+        for x in range(32, 64):
+            for y in range(64):
+                px[x, y] = 200
+        for x in range(64):
+            for y in range(16):
+                px[x, y] = 255
+        img.convert("RGB").save(tmp_path / "a.jpg", quality=92)
+        img.convert("RGB").save(tmp_path / "b.png")
+        img.resize((24, 24)).convert("RGB").save(tmp_path / "c_small.png")
+
+        # 一张完全不同的图：上暗下亮（结构相反）
+        other = Image.new("L", (64, 64), 220)
+        opx = other.load()
+        for x in range(64):
+            for y in range(32, 64):
+                opx[x, y] = 30
+        other.convert("RGB").save(tmp_path / "z_other.png")
+
+        groups = find_similar_images([tmp_path])
+        assert len(groups) == 1
+        names = sorted(Path(p).name for p in groups[0]["paths"])
+        assert names == ["a.jpg", "b.png", "c_small.png"]

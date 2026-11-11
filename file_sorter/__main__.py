@@ -96,6 +96,11 @@ def main() -> None:
         help="撤销最近一次整理：按历史记录把文件移回原位置后退出",
     )
     parser.add_argument(
+        "--img-scan",
+        action="store_true",
+        help="相似图片扫描模式：用感知哈希找同图不同格式/尺寸的图片组（需 Pillow）",
+    )
+    parser.add_argument(
         "-V", "--version",
         action="version",
         version="Smart File Sorter v2.4.0",
@@ -144,6 +149,24 @@ def main() -> None:
         )
         for s in result["skipped"]:
             print(f"  跳过 {s['path']}：{s['reason']}")
+        sys.exit(0)
+
+    # === 相似图片扫描模式 ===
+    if args.img_scan:
+        from .duplicates import find_similar_images, pillow_available
+
+        if not pillow_available():
+            print("图片相似检测需要 Pillow：pip install Pillow 后再试。")
+            sys.exit(1)
+        groups = find_similar_images(args.directories, recursive=True)
+        if not groups:
+            print("未发现相似图片。")
+            sys.exit(0)
+        print(f"发现 {len(groups)} 组相似图片（感知哈希判定，仅供参考）：")
+        for g in groups:
+            print(f"\n[{len(g['paths'])} 张相似]")
+            for p in g["paths"]:
+                print(f"  {p}")
         sys.exit(0)
 
     # === 重复文件扫描模式 ===
